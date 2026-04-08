@@ -1,0 +1,221 @@
+/* ============================================================================
+ * App.css - Estilos Personalizados do Aplicativo BookTracker
+ * ============================================================================
+ * Este arquivo contém estilos CSS que complementam o Bootstrap.
+ * O Bootstrap já fornece muitos estilos prontos, mas aqui adicionamos
+ * toques personalizados para deixar o app mais bonito e único.
+ * ============================================================================ */
+
+/* ============================================================================
+ * VARIÁVEIS CSS (CUSTOM PROPERTIES)
+ * ============================================================================
+ * Variáveis CSS permitem definir valores reutilizáveis em todo o CSS.
+ * Se quisermos mudar a cor primária, mudamos aqui e afeta todo o app.
+ * ============================================================================ */
+:root {
+  /* Cores principais do tema */
+  --primary-color: #6366f1;        /* Índigo: cor principal */
+  --primary-hover: #4f46e5;        /* Índigo escuro: hover de botões */
+  --bg-gradient-start: #f8f9ff;    /* Início do gradiente de fundo */
+  --bg-gradient-end: #eef2ff;      /* Fim do gradiente de fundo */
+  
+  /* Sombras para profundidade */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);     /* Sombra pequena */
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);     /* Sombra média */
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);    /* Sombra grande */
+  
+  /* Transições suaves */
+  --transition-fast: 150ms ease-in-out;  /* Transição rápida */
+  --transition-normal: 200ms ease;       /* Transição normal */
+}
+
+/* ============================================================================
+ * ESTILOS GLOBAIS
+ * ============================================================================ */
+
+/* 
+ * Body: define a fonte e o fundo geral da página.
+ * O fundo usa um gradiente sutil para dar profundidade.
+ */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+  min-height: 100vh; /* Garante que o fundo cubra toda a altura da tela */
+  color: #1f2937;    /* Cinza escuro para texto (melhor que preto puro) */
+}
+
+/* 
+ * Wrapper principal do app.
+ * Garante que o conteúdo ocupe pelo menos toda a altura da tela.
+ */
+.app-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================================
+ * CARDS DE LIVROS (BookCard)
+ * ============================================================================ */
+
+/* 
+ * Efeito de hover nos cards de livros.
+ * Quando o mouse passa sobre o card, ele "levanta" com uma sombra maior.
+ */
+.hover-shadow {
+  transition: all var(--transition-normal); /* Transição suave em todas as props */
+}
+
+.hover-shadow:hover {
+  transform: translateY(-4px);  /* Move o card 4px para cima */
+  box-shadow: var(--shadow-lg); /* Aplica sombra grande */
+}
+
+/* Ajuste para badges (etiquetas de status) */
+.w-fit-content {
+  width: fit-content; /* O badge ocupa apenas o tamanho do conteúdo */
+}
+
+/* ============================================================================
+ * AVALIAÇÃO EM ESTRELAS (StarRating)
+ * ============================================================================ */
+
+/* Container das estrelas */
+.star-rating {
+  display: flex;
+  align-items: center; /* Centraliza verticalmente */
+  gap: 2px;            /* Espaço pequeno entre as estrelas */
+}
+
+/* Efeito de hover nas estrelas individuais */
+.star-rating span:hover {
+  transform: scale(1.15); /* Aumenta a estrela em 15% */
+}
+
+/* ============================================================================
+ * ESTATÍSTICAS (StatsCard)
+ * ============================================================================ */
+
+/* Animação de entrada para os cards de estatísticas */
+@keyframes fadeInUp {
+  /* 
+   * @keyframes define uma animação CSS.
+   * fadeInUp faz o elemento aparecer de baixo para cima com fade-in.
+   */
+  from {
+    opacity: 0;               /* Começa invisível */
+    transform: translateY(20px); /* Começa 20px abaixo da posição final */
+  }
+  to {
+    opacity: 1;               /* Termina visível */
+    transform: translateY(0);  /* Termina na posição final */
+  }
+}
+
+/* Aplica a animação aos cards de estatísticas */
+.stats-card {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* ============================================================================
+ * BOTÕES PERSONALIZADOS
+ * ============================================================================ */
+
+/* 
+ * Sobrescrita do botão primário do Bootstrap.
+ * Usamos nossa cor personalizada (índigo).
+ */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+  transform: translateY(-1px); /* Levanta levemente no hover */
+}
+
+/* ============================================================================
+ * NAVBAR (Header)
+ * ============================================================================ */
+
+/* Links da navbar */
+.navbar-dark .nav-link {
+  transition: opacity var(--transition-fast);
+}
+
+.navbar-dark .nav-link:hover {
+  opacity: 0.8; /* Fica levemente transparente no hover */
+}
+
+/* ============================================================================
+ * RESPONSIVIDADE (MEDIA QUERIES)
+ * ============================================================================ */
+
+/* 
+ * Media queries aplicam estilos apenas em determinados tamanhos de tela.
+ * Isso garante que o app fique bom em qualquer dispositivo.
+ */
+
+/* Telas pequenas (celulares) */
+@media (max-width: 576px) {
+  /* Reduzimos o tamanho das estrelas em telas pequenas */
+  .star-rating {
+    font-size: 1rem;
+  }
+  
+  /* Ajustamos o padding do container para não grudar nas bordas */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* ============================================================================
+ * ANIMAÇÕES DE ENTRADA
+ * ============================================================================ */
+
+/* 
+ * Animação para os cards de livros aparecerem em sequência.
+ * Usada quando a página carrega ou quando livros são adicionados.
+ */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95); /* Começa 5% menor */
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);    /* Termina no tamanho normal */
+  }
+}
+
+/* Aplica a animação aos cards da grade de livros */
+.row .col {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* ============================================================================
+ * SCROLLBAR PERSONALIZADA
+ * ============================================================================ */
+
+/* Funciona no Chrome, Edge e Safari */
+::-webkit-scrollbar {
+  width: 8px; /* Largura da barra de rolagem */
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Cor do fundo da barra de rolagem */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color); /* Cor da parte que se move */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-hover); /* Cor mais escura no hover */
+}
