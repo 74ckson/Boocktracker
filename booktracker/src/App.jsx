@@ -1,269 +1,322 @@
 // ============================================================================
-// App.jsx - Componente Principal da Aplicação
+// App.jsx - Componente Principal da Aplicação BookTracker SaaS
 // ============================================================================
-// Este é o componente raiz da aplicação React. Ele é responsável por:
-// 1. Gerenciar o estado global dos livros (lista completa)
-// 2. Calcular estatísticas de leitura
-// 3. Coordenar a comunicação entre todos os componentes filhos
-// 4. Exibir a estrutura principal da página
-//
-// No React, é comum que o componente pai gerencie o estado e passe
-// funções para os filhos manipularem esse estado. Isso se chama
-// "lifting state up" (elevar o estado).
+// Versão SaaS com:
+// - Autenticação de usuários
+// - Integração completa com backend API
+// - Controle de plano (free/premium)
+// - Metas de leitura
+// - Estatísticas avançadas
 // ============================================================================
 
-import { useState, useMemo } from 'react'
-import { Container, Button, Row, Col, Alert } from 'react-bootstrap'
+import { useState, useMemo, useEffect } from 'react'
+import { Container, Button, Row, Col, Alert, Modal, Badge, ProgressBar } from 'react-bootstrap'
+import { useNavigate } from 'react-router-dom'
 
-// ============================================================================
-// IMPORTAÇÃO DE COMPONENTES FILHOS
-// ============================================================================
-// Importamos todos os componentes que vamos usar neste arquivo.
-// Cada um cuida de uma parte específica da interface.
-// ============================================================================
 import Header from './components/Header'
 import BookCard from './components/BookCard'
 import BookForm from './components/BookForm'
 import StatsCard from './components/StatsCard'
 import SearchBar from './components/SearchBar'
+import { getUser, removeUser } from './services/storage'
+import * as api from './services/api'
 
-// Importamos os dados iniciais de exemplo
-import { initialBooks } from './data/books'
+// Limites do plano gratuito
+const FREE_PLAN_LIMIT = 50;
 
-/**
- * Componente Principal: App
- * 
- * Este componente gerencia toda a lógica do aplicativo de livros.
- * Em um projeto maior, essa lógica seria dividida em mais arquivos.
- */
 function App() {
-  
-  // ========================================================================
-  // ESTADOS GLOBAIS DO APP
-  // ========================================================================
-  // useState é um "hook" do React que permite gerenciar estado.
-  // Quando chamamos a função de atualização (ex: setBooks), o React
-  // re-renderiza o componente automaticamente com os novos valores.
-  // ========================================================================
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [books, setBooks] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('todos');
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [readingGoal, setReadingGoal] = useState(0);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  /**
-   * books: Array com todos os livros da estante.
-   * Usamos initialBooks como valor inicial (dados de exemplo).
-   * 
-   * Em um app real, poderíamos carregar do localStorage ou de uma API.
-   */
-  const [books, setBooks] = useState(initialBooks)
+  // Carregar usuário e livros ao montar o componente
+  useEffect(() => {
+    loadUserData();
+  }, []);
 
-  /**
-   * showForm: Controla se o formulário modal está visível.
-   * true = modal aberto, false = modal fechado
-   */
-  const [showForm, setShowForm] = useState(false)
+  const loadUserData = async () => {
+    try {
+      const loggedUser = getUser();
+      if (!loggedUser) {
+        navigate('/login');
+        return;
+      }
+      
+      setUser(loggedUser);
 
-  /**
-   * searchTerm: Texto digitado na barra de busca.
-   * Usado para filtrar livros por título ou autor.
-   * String vazia = sem filtro de busca.
-   */
-  const [searchTerm, setSearchTerm] = useState('')
+      // Carregar livros da API
+      const booksData = await api.getBooks();
+      setBooks(booksData);
 
-  /**
-   * filterStatus: Status selecionado no filtro.
-   * 'todos' = sem filtro, 'lendo'/'lido'/'quero-ler' = filtra por status
-   */
-  const [filterStatus, setFilterStatus] = useState('todos')
+      // Carregar meta de leitura do usuário
+      if (loggedUser.readingGoal) {
+        setReadingGoal(loggedUser.readingGoal);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ========================================================================
-  // CÁLCULO DE ESTATÍSTICAS
-  // ========================================================================
-  // useMemo é um hook que "memoriza" um valor calculado, evitando
-  // recálculos desnecessários. Só recalcula quando `books` muda.
-  //
-  // Isso é importante para performance quando os cálculos são caros.
-  // ========================================================================
+  // Verificar limite do plano
+  const isAtLimit = user?.plan === 'free' && books.length >= FREE_PLAN_LIMIT;
+
+  // Calcular estatísticas
   const stats = useMemo(() => {
-    // Filtramos livros por status usando .filter()
-    // .filter() cria um novo array apenas com os itens que passam na condição
-    const booksReading = books.filter(book => book.status === 'lendo').length
-    const booksRead = books.filter(book => book.status === 'lido').length
-    const booksWantToRead = books.filter(book => book.status === 'quero-ler').length
+    const booksReading = books.filter(book => book.status === 'lendo').length;
+    const booksRead = books.filter(book => book.status === 'lido').length;
+    const booksWantToRead = books.filter(book => book.status === 'quero-ler').length;
 
-    // Calculamos a média de avaliações
-    // .filter(r => r > 0) exclui livros sem avaliação (rating = 0)
-    const ratedBooks = books.filter(b => b.rating > 0)
-    const totalRating = ratedBooks.reduce((sum, b) => sum + b.rating, 0)
-    const averageRating = ratedBooks.length > 0 
-      ? totalRating / ratedBooks.length 
-      : 0
+    const ratedBooks = books.filter(b => b.rating > 0);
+    const totalRating = ratedBooks.reduce((sum, b) => sum + b.rating, 0);
+    const averageRating = ratedBooks.length > 0 ? totalRating / ratedBooks.length : 0;
 
-    // Retornamos um objeto com todas as estatísticas
+    // Livros lidos este ano
+    const currentYear = new Date().getFullYear();
+    const booksThisYear = books.filter(book => {
+      if (!book.completed_at) return false;
+      return new Date(book.completed_at).getFullYear() === currentYear;
+    }).length;
+
+    // Progresso da meta
+    const goalProgress = readingGoal > 0 ? (booksRead / readingGoal) * 100 : 0;
+
     return {
       totalBooks: books.length,
       booksReading,
       booksRead,
       booksWantToRead,
       averageRating,
-    }
-  }, [books]) // <-- [books] é a "dependência": recalcula quando `books` muda
+      booksThisYear,
+      goalProgress: Math.min(goalProgress, 100),
+    };
+  }, [books, readingGoal]);
 
-  // ========================================================================
-  // FILTRAGEM DE LIVROS
-  // ========================================================================
-  // Aqui aplicamos dois filtros simultaneamente:
-  // 1. Filtro por status (lendo, lido, quero-ler)
-  // 2. Filtro por texto (busca por título ou autor)
-  //
-  // Os filtros são combinados: um livro precisa passar por ambos para aparecer.
-  // ========================================================================
+  // Filtragem de livros
   const filteredBooks = useMemo(() => {
     return books.filter(book => {
-      // ==================================================================
-      // FILTRO POR STATUS
-      // ==================================================================
-      // Se filterStatus for 'todos', qualquer status passa (retorna true).
-      // Caso contrário, apenas livros com o status selecionado passam.
-      // ==================================================================
-      const matchesStatus = filterStatus === 'todos' || book.status === filterStatus
-
-      // ==================================================================
-      // FILTRO POR TEXTO (BUSCA)
-      // ==================================================================
-      // .toLowerCase() torna a busca case-insensitive (ignora maiúsculas).
-      // .includes() verifica se o texto está contido na string.
-      // Buscamos tanto no título quanto no autor.
-      // ==================================================================
-      const searchLower = searchTerm.toLowerCase()
-      const matchesSearch = 
-        !searchTerm || // Se searchTerm é vazio, qualquer livro passa
+      const matchesStatus = filterStatus === 'todos' || book.status === filterStatus;
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm ||
         book.title.toLowerCase().includes(searchLower) ||
-        book.author.toLowerCase().includes(searchLower)
+        book.author.toLowerCase().includes(searchLower);
+      return matchesStatus && matchesSearch;
+    });
+  }, [books, searchTerm, filterStatus]);
 
-      // O livro precisa passar em AMBOS os filtros para ser exibido
-      return matchesStatus && matchesSearch
-    })
-  }, [books, searchTerm, filterStatus]) // Recalcula quando qualquer dependência muda
-
-  // ========================================================================
-  // FUNÇÕES DE MANIPULAÇÃO (HANDLERS)
-  // ========================================================================
-  // Estas funções modificam o estado `books`. Quando o estado muda,
-  // o React re-renderiza automaticamente todos os componentes afetados.
-  //
-  // IMPORTANTE: Nunca mutamos o estado diretamente (ex: books.push()).
-  // Sempre criamos um novo array/objeto e usamos setBooks(novoValor).
-  // Isso permite que o React detecte mudanças corretamente.
-  // ========================================================================
-
-  /**
-   * Adiciona um novo livro à estante.
-   * 
-   * @param {Object} newBook - Objeto com os dados do novo livro
-   * 
-   * Usamos spread operator (...) para criar um novo array contendo
-   * todos os livros existentes + o novo livro.
-   * 
-   * Geramos um ID único usando Date.now() (timestamp em milissegundos).
-   * Em produção, usaríamos UUID ou ID do banco de dados.
-   */
-  const handleAddBook = (newBook) => {
-    const bookWithId = {
-      ...newBook,            // Copia todas as propriedades do newBook
-      id: Date.now(),        // Adiciona um ID único
+  // Handlers
+  const handleAddBook = async (newBook) => {
+    if (isAtLimit) {
+      setShowLimitModal(true);
+      return;
     }
-    // Criamos um novo array com todos os livros + o novo
-    setBooks([...books, bookWithId])
-  }
 
-  /**
-   * Remove um livro da estante pelo seu ID.
-   * 
-   * @param {number} bookId - ID do livro a ser removido
-   * 
-   * .filter() cria um novo array EXCLUINDO o livro com o ID fornecido.
-   * A condição book.id !== bookId retorna true para todos os livros
-   * que NÃO são o que queremos remover.
-   */
-  const handleRemoveBook = (bookId) => {
-    setBooks(books.filter(book => book.id !== bookId))
-  }
+    try {
+      // Verificar se é FormData (com upload de imagem)
+      const isFormData = newBook instanceof FormData;
+      
+      let createdBook;
+      if (isFormData) {
+        // FormData: enviar diretamente para a API
+        createdBook = await api.createBook(newBook);
+      } else {
+        // Objeto normal: adicionar timestamp
+        createdBook = await api.createBook({
+          ...newBook,
+          addedAt: new Date().toISOString(),
+        });
+      }
+      
+      setBooks([createdBook, ...books]);
+    } catch (err) {
+      console.error('Erro ao adicionar livro:', err);
+      alert('Erro ao adicionar livro. Tente novamente.');
+    }
+  };
 
-  /**
-   * Atualiza a avaliação (rating) de um livro.
-   * 
-   * @param {number} bookId - ID do livro a ser avaliado
-   * @param {number} newRating - Nova avaliação (1-5)
-   * 
-   * .map() itera sobre todos os livros e retorna um novo array:
-   * - Se o livro tem o ID correspondente, retornamos uma cópia com novo rating
-   * - Caso contrário, retornamos o livro original (inalterado)
-   */
-  const handleRateBook = (bookId, newRating) => {
-    setBooks(books.map(book => 
-      book.id === bookId 
-        ? { ...book, rating: newRating }  // Cria cópia com novo rating
-        : book                             // Mantém o livro original
-    ))
-  }
+  const handleRemoveBook = async (bookId) => {
+    try {
+      await api.deleteBook(bookId);
+      setBooks(books.filter(book => book.id !== bookId));
+    } catch (err) {
+      console.error('Erro ao remover livro:', err);
+      alert('Erro ao remover livro. Tente novamente.');
+    }
+  };
 
-  /**
-   * Alterna o status de um livro em ciclo:
-   * quero-ler → lendo → lido → quero-ler
-   * 
-   * @param {number} bookId - ID do livro cujo status será alterado
-   * 
-   * Este é um padrão comum para atualizar um item específico em um array.
-   */
-  const handleStatusChange = (bookId) => {
-    // Mapa de transição de status
+  const handleRateBook = async (bookId, newRating) => {
+    try {
+      const updatedBook = await api.updateBook(bookId, { rating: newRating });
+      setBooks(books.map(book => 
+        book.id === bookId ? updatedBook : book
+      ));
+    } catch (err) {
+      console.error('Erro ao avaliar livro:', err);
+      alert('Erro ao avaliar livro. Tente novamente.');
+    }
+  };
+
+  const handleStatusChange = async (bookId) => {
     const statusCycle = {
       'quero-ler': 'lendo',
       'lendo': 'lido',
       'lido': 'quero-ler',
-    }
+    };
 
-    setBooks(books.map(book =>
-      book.id === bookId
-        ? { ...book, status: statusCycle[book.status] }
-        : book
-    ))
+    try {
+      const book = books.find(b => b.id === bookId);
+      const newStatus = statusCycle[book.status];
+      
+      const updates = {
+        status: newStatus,
+        completedAt: newStatus === 'lido' ? new Date().toISOString() : undefined
+      };
+
+      const updatedBook = await api.updateBook(bookId, updates);
+      setBooks(books.map(b => 
+        b.id === bookId ? updatedBook : b
+      ));
+    } catch (err) {
+      console.error('Erro ao mudar status:', err);
+      alert('Erro ao mudar status. Tente novamente.');
+    }
+  };
+
+  const handleLogout = () => {
+    api.logout();
+    navigate('/login');
+  };
+
+  const handleSetGoal = async (goal) => {
+    try {
+      await api.updateReadingGoal(goal);
+      setReadingGoal(goal);
+      
+      // Atualizar usuário local
+      const updatedUser = { ...user, readingGoal: goal };
+      setUser(updatedUser);
+      localStorage.setItem('booktracker_user', JSON.stringify(updatedUser));
+      
+      setShowGoalModal(false);
+    } catch (err) {
+      console.error('Erro ao definir meta:', err);
+      alert('Erro ao definir meta. Tente novamente.');
+    }
+  };
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-3" role="status">
+            <span className="visually-hidden">Carregando...</span>
+          </div>
+          <p className="text-muted">Carregando seus livros...</p>
+        </div>
+      </div>
+    );
   }
 
-  // ========================================================================
-  // RENDERIZAÇÃO DA INTERFACE
-  // ========================================================================
-  // O return do componente define o que será exibido na tela.
-  // Usamos JSX (JavaScript XML), que permite escrever HTML dentro do JS.
-  // ========================================================================
-  return (
-    // Container principal: envolve todo o conteúdo da página
-    <div className="app-wrapper">
-      
-      {/* ================================================================== */}
-      {/* CABEÇALHO                                                           */}
-      {/* ================================================================== */}
-      {/* Passamos as estatísticas calculadas como prop para o Header.       */}
-      {/* O Header exibe os contadores de livros por status.                 */}
-      {/* ================================================================== */}
-      <Header stats={stats} />
+  // Error
+  if (error) {
+    return (
+      <Container className="py-5">
+        <Alert variant="danger">
+          <i className="bi bi-exclamation-triangle me-2"></i>
+          {error}
+          <Button variant="outline-danger" size="sm" className="ms-3" onClick={loadUserData}>
+            Tentar Novamente
+          </Button>
+        </Alert>
+      </Container>
+    );
+  }
 
-      {/* ================================================================== */}
-      {/* CONTEÚDO PRINCIPAL                                                 */}
-      {/* ================================================================== */}
+  return (
+    <div className="app-wrapper">
+      <Header stats={stats} user={user} onLogout={handleLogout} />
+
       <Container className="py-4">
-        
-        {/* ================================================================== */}
-        {/* SEÇÃO DE ESTATÍSTICAS                                              */}
-        {/* ================================================================== */}
-        {/* StatsCard recebe as estatísticas e exibe cards visuais.            */}
-        {/* ================================================================== */}
+        {/* Banner do Plano */}
+        <Alert variant={user.plan === 'free' ? 'info' : 'success'} className="mb-4">
+          <Row className="align-items-center">
+            <Col>
+              <h6 className="mb-1">
+                <i className={`bi bi-${user.plan === 'free' ? 'gift' : 'star'} me-2`}></i>
+                Plano {user.plan === 'free' ? 'Gratuito' : 'Premium'}
+              </h6>
+              <p className="mb-0 small">
+                {user.plan === 'free'
+                  ? `${books.length}/${FREE_PLAN_LIMIT} livros utilizados. ${FREE_PLAN_LIMIT - books.length} disponíveis.`
+                  : 'Você tem acesso ilimitado a todos os recursos!'}
+              </p>
+            </Col>
+            <Col xs="auto">
+              {user.plan === 'free' && (
+                <Button variant="success" size="sm">
+                  <i className="bi bi-arrow-up-circle me-1"></i>
+                  Upgrade para Premium
+                </Button>
+              )}
+            </Col>
+          </Row>
+        </Alert>
+
+        {/* Meta de Leitura */}
+        {readingGoal > 0 && (
+          <Alert variant="primary" className="mb-4">
+            <Row className="align-items-center">
+              <Col>
+                <h6 className="mb-1">
+                  <i className="bi bi-target me-2"></i>
+                  Meta de {readingGoal} livros em {new Date().getFullYear()}
+                </h6>
+                <ProgressBar
+                  now={stats.goalProgress}
+                  label={`${stats.goalProgress.toFixed(0)}%`}
+                  className="mt-2"
+                  variant="success"
+                />
+              </Col>
+              <Col xs="auto">
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => setShowGoalModal(true)}
+                >
+                  <i className="bi bi-pencil me-1"></i>
+                  Editar Meta
+                </Button>
+              </Col>
+            </Row>
+          </Alert>
+        )}
+
         <StatsCard stats={stats} />
 
-        {/* ================================================================== */}
-        {/* BARRA DE BUSCA E FILTROS                                           */}
-        {/* ================================================================== */}
-        {/* searchTerm e filterStatus vêm do estado do App.                    */}
-        {/* Quando mudam, os livros exibidos são filtrados automaticamente.    */}
-        {/* ================================================================== */}
+        {!readingGoal && (
+          <div className="mb-4">
+            <Button
+              variant="outline-primary"
+              onClick={() => setShowGoalModal(true)}
+            >
+              <i className="bi bi-target me-2"></i>
+              Definir Meta de Leitura Anual
+            </Button>
+          </div>
+        )}
+
         <div className="mt-4">
           <SearchBar
             searchTerm={searchTerm}
@@ -273,37 +326,28 @@ function App() {
           />
         </div>
 
-        {/* ================================================================== */}
-        {/* BOTÃO PARA ADICIONAR NOVO LIVRO                                    */}
-        {/* ================================================================== */}
-        {/* onClick={...} define o que acontece quando o botão é clicado.      */}
-        {/* setShowForm(true) abre o modal do formulário.                      */}
-        {/* ================================================================== */}
         <div className="mb-4">
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             size="lg"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              if (isAtLimit) {
+                setShowLimitModal(true);
+              } else {
+                setShowForm(true);
+              }
+            }}
           >
             <i className="bi bi-plus-circle me-2"></i>
             Adicionar Livro
           </Button>
         </div>
 
-        {/* ================================================================== */}
-        {/* GRADE DE LIVROS                                                    */}
-        {/* ================================================================== */}
-        {/* Se não há livros após filtragem, mostramos um alerta informativo.  */}
-        {/* Caso contrário, mapeamos cada livro em um componente BookCard.     */}
-        {/* ================================================================== */}
         {filteredBooks.length === 0 ? (
-          // Renderização condicional: exibido quando não há livros
           <Alert variant="info" className="text-center py-5">
             <i className="bi bi-book display-1 d-block mb-3"></i>
             <Alert.Heading>
-              {books.length === 0 
-                ? 'Sua estante está vazia!' 
-                : 'Nenhum livro encontrado'}
+              {books.length === 0 ? 'Sua estante está vazia!' : 'Nenhum livro encontrado'}
             </Alert.Heading>
             <p>
               {books.length === 0
@@ -311,48 +355,27 @@ function App() {
                 : 'Tente mudar os filtros de busca.'}
             </p>
             {books.length === 0 && (
-              <Button 
-                variant="primary" 
-                onClick={() => setShowForm(true)}
-              >
+              <Button variant="primary" onClick={() => setShowForm(true)}>
                 <i className="bi bi-plus-circle me-2"></i>
                 Adicionar Primeiro Livro
               </Button>
             )}
           </Alert>
         ) : (
-          // Grid responsivo de livros:
-          // - 1 coluna em telas pequenas (sm)
-          // - 2 colunas em telas médias (md)
-          // - 3 colunas em telas grandes (lg)
-          // - 4 colunas em telas extra grandes (xl)
           <Row xs={1} md={2} lg={3} xl={4} className="g-4">
-            {
-              // .map() cria um componente BookCard para cada livro filtrado.
-              // A prop `key` é obrigatória e deve ser única (usamos book.id).
-              // Cada BookCard recebe funções para interagir com o livro.
-              filteredBooks.map(book => (
-                <Col key={book.id}>
-                  <BookCard
-                    book={book}
-                    // onRate: quando o usuário avalia o livro
-                    onRate={(rating) => handleRateBook(book.id, rating)}
-                    // onRemove: quando o usuário remove o livro
-                    onRemove={() => handleRemoveBook(book.id)}
-                    // onStatusChange: quando o usuário muda o status
-                    onStatusChange={() => handleStatusChange(book.id)}
-                  />
-                </Col>
-              ))
-            }
+            {filteredBooks.map(book => (
+              <Col key={book.id}>
+                <BookCard
+                  book={book}
+                  onRate={(rating) => handleRateBook(book.id, rating)}
+                  onRemove={() => handleRemoveBook(book.id)}
+                  onStatusChange={() => handleStatusChange(book.id)}
+                />
+              </Col>
+            ))}
           </Row>
         )}
 
-        {/* ================================================================== */}
-        {/* MODAL DO FORMULÁRIO DE ADICIONAR LIVRO                             */}
-        {/* ================================================================== */}
-        {/* O modal fica aqui, mas só é exibido quando showForm é true.        */}
-        {/* ================================================================== */}
         <BookForm
           show={showForm}
           onClose={() => setShowForm(false)}
@@ -360,16 +383,75 @@ function App() {
         />
       </Container>
 
-      {/* ================================================================== */}
-      {/* RODAPÉ                                                               */}
-      {/* ================================================================== */}
+      {/* Modal de Limite Atingido */}
+      <Modal show={showLimitModal} onHide={() => setShowLimitModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-exclamation-triangle text-warning me-2"></i>
+            Limite Atingido
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Você atingiu o limite de <strong>{FREE_PLAN_LIMIT} livros</strong> do plano gratuito.</p>
+          <p>Faça upgrade para o plano Premium e tenha:</p>
+          <ul>
+            <li>✅ Livros ilimitados</li>
+            <li>✅ Estatísticas avançadas</li>
+            <li>✅ Exportação de dados</li>
+            <li>✅ Recomendações personalizadas</li>
+            <li>✅ Suporte prioritário</li>
+          </ul>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowLimitModal(false)}>
+            Fechar
+          </Button>
+          <Button variant="success">
+            <i className="bi bi-star me-2"></i>
+            Upgrade para Premium
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal de Meta de Leitura */}
+      <Modal show={showGoalModal} onHide={() => setShowGoalModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-target me-2"></i>
+            Meta de Leitura Anual
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Quantos livros você deseja ler em {new Date().getFullYear()}?</p>
+          <div className="d-flex gap-2 flex-wrap">
+            {[12, 24, 36, 50, 100].map(goal => (
+              <Button
+                key={goal}
+                variant={readingGoal === goal ? 'primary' : 'outline-primary'}
+                onClick={() => handleSetGoal(goal)}
+              >
+                {goal}
+              </Button>
+            ))}
+          </div>
+          <hr />
+          <Button
+            variant="outline-danger"
+            size="sm"
+            onClick={() => handleSetGoal(0)}
+          >
+            <i className="bi bi-x-circle me-1"></i>
+            Remover Meta
+          </Button>
+        </Modal.Body>
+      </Modal>
+
       <footer className="text-center py-4 text-muted border-top mt-5">
         <i className="bi bi-book-heart me-2"></i>
-        <span>BookTracker — Feito com React e Bootstrap</span>
+        <span>BookTracker SaaS — {user.name} ({user.plan})</span>
       </footer>
     </div>
-  )
+  );
 }
 
-// Exportamos o componente principal para que o main.jsx possa importá-lo
-export default App
+export default App;

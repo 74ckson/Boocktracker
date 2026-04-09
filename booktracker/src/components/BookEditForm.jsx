@@ -1,73 +1,40 @@
 // ============================================================================
-// components/BookForm.jsx - Formulário para Adicionar Novo Livro
+// components/BookEditForm.jsx - Formulário para Editar Livro
 // ============================================================================
-// Este componente exibe um formulário modal (pop-up) onde o usuário pode
-// adicionar um novo livro à estante.
-//
-// Conceitos importantes:
-// - Formulários controlados no React (controlled components)
-// - Modal do Bootstrap
-// - Validação básica de formulário
-// - Gerenciamento de estado múltiplo
+// Modal para editar as informações de um livro existente.
 // ============================================================================
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Modal, Button, Form, Alert } from 'react-bootstrap'
 
-/**
- * Componente BookForm
- *
- * @param {Object} props - Props do componente
- * @param {boolean} props.show - Se o modal deve ser exibido ou não
- * @param {Function} props.onClose - Função para fechar o modal
- * @param {Function} props.onAdd - Função para adicionar o livro.
- *                                 Recebe um objeto com os dados do livro.
- *
- * Controlled Components:
- * No React, quando um campo de input tem seu valor controlado pelo estado,
- * chamamos de "controlled component". Cada tecla digitada atualiza o estado,
- * e o estado controla o que é exibido no input.
- */
-function BookForm({ show, onClose, onAdd }) {
-
-  // ========================================================================
-  // ESTADOS DO FORMULÁRIO
-  // ========================================================================
-  // Cada campo do formulário tem seu próprio estado com useState.
-  // Isso nos permite:
-  // 1. Acessar os valores quando o usuário submete
-  // 2. Limpar os campos após o submit
-  // 3. Validar os dados antes de enviar
-  // ========================================================================
-
-  // Campo: título do livro
+function BookEditForm({ show, book, onClose, onSave }) {
+  // Estados do formulário
   const [title, setTitle] = useState('')
-
-  // Campo: autor do livro
   const [author, setAuthor] = useState('')
-
-  // Campo: descrição/sinopse
   const [description, setDescription] = useState('')
-
-  // Campo: status inicial (começa com "quero-ler" por padrão)
   const [status, setStatus] = useState('quero-ler')
-
-  // Campo: arquivo de imagem da capa
   const [coverImage, setCoverImage] = useState(null)
-
-  // Preview da imagem selecionada
   const [coverPreview, setCoverPreview] = useState('')
-
-  // Estado para mensagem de erro (quando campos obrigatórios não são preenchidos)
   const [error, setError] = useState('')
 
   // Ref para o input de arquivo
   const fileInputRef = useRef(null)
 
+  // Carregar dados do livro quando o modal abrir
+  useEffect(() => {
+    if (book && show) {
+      setTitle(book.title || '')
+      setAuthor(book.author || '')
+      setDescription(book.description || '')
+      setStatus(book.status || 'quero-ler')
+      setCoverPreview(book.cover || '')
+      setCoverImage(null)
+      setError('')
+    }
+  }, [book, show])
+
   /**
    * Função chamada quando o usuário seleciona uma imagem.
-   *
-   * @param {Event} e - Evento de change do input file
    */
   const handleImageChange = (e) => {
     const file = e.target.files[0]
@@ -78,8 +45,8 @@ function BookForm({ show, onClose, onAdd }) {
       if (!validTypes.includes(file.type)) {
         setError('Apenas imagens JPG e PNG são permitidas!')
         setCoverImage(null)
-        setCoverPreview('')
-        e.target.value = '' // Limpar input
+        setCoverPreview(book?.cover || '')
+        e.target.value = ''
         return
       }
 
@@ -87,7 +54,7 @@ function BookForm({ show, onClose, onAdd }) {
       if (file.size > 5 * 1024 * 1024) {
         setError('A imagem deve ter no máximo 5MB!')
         setCoverImage(null)
-        setCoverPreview('')
+        setCoverPreview(book?.cover || '')
         e.target.value = ''
         return
       }
@@ -117,60 +84,38 @@ function BookForm({ show, onClose, onAdd }) {
 
   /**
    * Função chamada quando o usuário submete o formulário.
-   *
-   * @param {Event} e - Evento de submit do formulário
    */
   const handleSubmit = (e) => {
-    // preventDefault() evita que o formulário faça um submit tradicional
-    // (que recarregaria a página). No React, lidamos com tudo via JavaScript.
     e.preventDefault()
 
-    // ====================================================================
-    // VALIDAÇÃO BÁSICA
-    // ====================================================================
-    // Verificamos se os campos obrigatórios foram preenchidos.
-    // .trim() remove espaços em branco no início e fim da string.
-    // Um campo só com espaços é considerado vazio.
-    // ====================================================================
+    // Validação básica
     if (!title.trim() || !author.trim()) {
       setError('Por favor, preencha o título e o autor do livro.')
-      return // Interrompe a execução se houver erro
+      return
     }
 
     // Criar objeto FormData para enviar dados + arquivo
     const formData = new FormData()
     formData.append('title', title.trim())
     formData.append('author', author.trim())
-    formData.append('description', description.trim() || 'Sem descrição.')
+    formData.append('description', description.trim() || book?.description || '')
     formData.append('status', status)
-    formData.append('rating', 0)
+    formData.append('rating', book?.rating || 0)
     
     // Adicionar imagem se houver
     if (coverImage) {
       formData.append('coverImage', coverImage)
     }
 
-    // Chamamos a função onAdd passada pelo componente pai,
-    // passando os dados do novo livro
-    onAdd(formData)
+    // Chamar função onSave passada pelo componente pai
+    onSave(book.id, formData)
 
-    // Limpamos todos os campos do formulário para o próximo uso
-    setTitle('')
-    setAuthor('')
-    setDescription('')
-    setStatus('quero-ler')
-    setCoverImage(null)
-    setCoverPreview('')
-    setError('')
-
-    // Fechamos o modal após adicionar o livro
+    // Fechar o modal
     onClose()
   }
 
   /**
    * Função chamada quando o modal é fechado.
-   * Limpa os campos e erros para garantir que o formulário esteja limpo
-   * na próxima abertura.
    */
   const handleClose = () => {
     setTitle('')
@@ -183,29 +128,18 @@ function BookForm({ show, onClose, onAdd }) {
     onClose()
   }
 
+  if (!book) return null
+
   return (
-    // ====================================================================
-    // MODAL DO BOOTSTRAP
-    // ====================================================================
-    // Modal é um componente que aparece sobreposto ao conteúdo principal.
-    // É ideal para formulários que não precisam estar sempre visíveis.
-    // ====================================================================
-    <Modal show={show} onHide={handleClose} centered>
-      {/* Cabeçalho do modal */}
+    <Modal show={show} onHide={handleClose} centered size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
-          <i className="bi bi-plus-circle me-2"></i>
-          Adicionar Novo Livro
+          <i className="bi bi-pencil-square me-2"></i>
+          Editar Livro
         </Modal.Title>
       </Modal.Header>
 
-      {/* Corpo do modal: contém o formulário */}
       <Modal.Body>
-        {/*
-          Alerta de erro: só é exibido quando há uma mensagem de erro.
-          Renderização condicional: se `error` for falsy (string vazia),
-          nada é renderizado na tela.
-        */}
         {error && (
           <Alert variant="danger">
             <i className="bi bi-exclamation-triangle me-2"></i>
@@ -213,11 +147,6 @@ function BookForm({ show, onClose, onAdd }) {
           </Alert>
         )}
 
-        {/*
-          Formulário controlado pelo React.
-          onSubmit é o evento disparado quando o usuário pressiona Enter
-          ou clica no botão de submit.
-        */}
         <Form onSubmit={handleSubmit}>
           {/* Campo: Título */}
           <Form.Group className="mb-3">
@@ -229,10 +158,7 @@ function BookForm({ show, onClose, onAdd }) {
               type="text"
               placeholder="Ex: Dom Casmurro"
               value={title}
-              // onChange é chamado toda vez que o usuário digita.
-              // e.target.value contém o texto atual do input.
               onChange={(e) => setTitle(e.target.value)}
-              // isInvalid mostra borda vermelha se há erro
               isInvalid={!!error && !title.trim()}
             />
           </Form.Group>
@@ -258,10 +184,9 @@ function BookForm({ show, onClose, onAdd }) {
               <i className="bi bi-text-paragraph me-1"></i>
               Descrição
             </Form.Label>
-            {/* as="textarea" transforma o input em uma área de texto */}
             <Form.Control
               as="textarea"
-              rows={3}
+              rows={4}
               placeholder="Breve descrição do livro..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -284,17 +209,17 @@ function BookForm({ show, onClose, onAdd }) {
               Apenas imagens JPG e PNG. Tamanho máximo: 5MB.
             </Form.Text>
 
-            {/* Preview da imagem selecionada */}
+            {/* Preview da imagem */}
             {coverPreview && (
               <div className="mt-3 text-center">
                 <img
                   src={coverPreview}
                   alt="Preview da capa"
                   style={{
-                    maxHeight: '200px',
+                    maxHeight: '250px',
                     maxWidth: '100%',
                     borderRadius: '8px',
-                    objectFit: 'cover'
+                    objectFit: 'contain'
                   }}
                 />
                 <div className="mt-2">
@@ -311,13 +236,12 @@ function BookForm({ show, onClose, onAdd }) {
             )}
           </Form.Group>
 
-          {/* Campo: Status Inicial */}
+          {/* Campo: Status */}
           <Form.Group className="mb-3">
             <Form.Label>
               <i className="bi bi-tag me-1"></i>
               Status
             </Form.Label>
-            {/* Select: dropdown para escolher o status */}
             <Form.Select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
@@ -330,24 +254,18 @@ function BookForm({ show, onClose, onAdd }) {
         </Form>
       </Modal.Body>
 
-      {/* Rodapé do modal: botões de ação */}
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>
           <i className="bi bi-x-lg me-1"></i>
           Cancelar
         </Button>
-        {/*
-          Botão de submit: dispara o handleSubmit do formulário.
-          type="submit" é importante para que o Enter também funcione.
-        */}
         <Button variant="primary" onClick={handleSubmit}>
           <i className="bi bi-check-lg me-1"></i>
-          Adicionar Livro
+          Salvar Alterações
         </Button>
       </Modal.Footer>
     </Modal>
   )
 }
 
-// Exportamos o componente
-export default BookForm
+export default BookEditForm

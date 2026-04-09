@@ -14,31 +14,32 @@
 // ============================================================================
 
 import { Card, Badge, Button } from 'react-bootstrap'
+import { useNavigate } from 'react-router-dom'
 import StarRating from './StarRating'
 
 /**
  * Mapeamento de status para configurações visuais
- * 
+ *
  * Usamos um objeto para mapear cada status a suas cores e textos.
  * Isso evita múltiplos if/else e torna o código mais limpo e fácil de manter.
- * 
+ *
  * Se precisarmos adicionar um novo status no futuro, basta adicionar
  * uma nova entrada neste objeto.
  */
 const statusConfig = {
-  'lendo': { 
+  'lendo': {
     bg: 'warning',      // Fundo amarelo (atenção: está lendo)
     text: 'dark',       // Texto escuro para contraste
     label: 'Lendo',
     icon: 'bi-bookmark' // Ícone de marcador
   },
-  'lido': { 
+  'lido': {
     bg: 'success',      // Fundo verde (sucesso: concluído!)
     text: 'white',      // Texto branco para contraste
     label: 'Lido',
     icon: 'bi-check-circle' // Ícone de concluído
   },
-  'quero-ler': { 
+  'quero-ler': {
     bg: 'info',         // Fundo azul claro (informação: planeja ler)
     text: 'dark',
     label: 'Quero Ler',
@@ -48,7 +49,7 @@ const statusConfig = {
 
 /**
  * Componente BookCard
- * 
+ *
  * @param {Object} props - Props do componente
  * @param {Object} props.book - Objeto com os dados do livro
  * @param {Function} props.onRate - Função chamada quando o usuário avalia o livro
@@ -56,7 +57,8 @@ const statusConfig = {
  * @param {Function} props.onStatusChange - Função chamada quando o status muda
  */
 function BookCard({ book, onRate, onRemove, onStatusChange }) {
-  
+  const navigate = useNavigate()
+
   // Desestruturação: extraindo propriedades do objeto book
   // Isso é mais limpo do que ficar usando book.title, book.author, etc.
   const { title, author, cover, status, rating, description } = book
@@ -64,22 +66,33 @@ function BookCard({ book, onRate, onRemove, onStatusChange }) {
   // Buscamos a configuração visual do status atual
   const config = statusConfig[status] || statusConfig['quero-ler']
 
+  // Handler para clicar no card e navegar para detalhes
+  const handleCardClick = (e) => {
+    // Não navegar se clicou em botões
+    if (e.target.closest('button')) return
+    navigate(`/book/${book.id}`)
+  }
+
   return (
     // Card do Bootstrap: container estilizado com bordas e sombra
-    <Card className="h-100 shadow-sm hover-shadow transition">
-      {/* 
+    <Card 
+      className="h-100 shadow-sm hover-shadow transition" 
+      onClick={handleCardClick}
+      style={{ cursor: 'pointer' }}
+    >
+      {/*
         A capa do livro usa um aspect ratio fixo para manter consistência visual.
         object-fit: "cover" faz a imagem preencher o espaço sem distorcer.
       */}
       <div style={{ height: '280px', overflow: 'hidden' }}>
-        <Card.Img 
-          variant="top" 
-          src={cover} 
+        <Card.Img
+          variant="top"
+          src={cover}
           alt={`Capa do livro: ${title}`}
-          style={{ 
-            width: '100%', 
-            height: '100%', 
-            objectFit: 'cover' 
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover'
           }}
         />
       </div>
@@ -87,27 +100,27 @@ function BookCard({ book, onRate, onRemove, onStatusChange }) {
       <Card.Body className="d-flex flex-column">
         {/* Título do livro */}
         <Card.Title className="fs-5 fw-bold mb-1">{title}</Card.Title>
-        
+
         {/* Nome do autor com ícone de lápis */}
         <Card.Subtitle className="text-muted mb-2">
           <i className="bi bi-pencil"></i> {author}
         </Card.Subtitle>
 
-        {/* 
+        {/*
           Badge de status: mostra visualmente em que estágio o livro está.
           O spread operator (...config) aplica todas as propriedades do config.
         */}
-        <Badge 
-          bg={config.bg} 
-          text={config.text} 
-          pill 
+        <Badge
+          bg={config.bg}
+          text={config.text}
+          pill
           className="mb-2 w-fit-content"
         >
           <i className={`bi ${config.icon} me-1`}></i>
           {config.label}
         </Badge>
 
-        {/* 
+        {/*
           Componente de avaliação em estrelas.
           rating: nota atual do livro (0-5)
           onRate: função chamada quando uma estrela é clicada
@@ -116,7 +129,7 @@ function BookCard({ book, onRate, onRemove, onStatusChange }) {
           <StarRating rating={rating} onRate={onRate} />
         </div>
 
-        {/* 
+        {/*
           Descrição do livro - usamos text-truncate para limitar
           a textos longos e manter os cards com altura similar.
         */}
@@ -124,17 +137,17 @@ function BookCard({ book, onRate, onRemove, onStatusChange }) {
           {description}
         </Card.Text>
 
-        {/* 
+        {/*
           Botões de ação na parte inferior do card.
           mt-auto = margin-top: auto, empurra os botões para o fundo.
         */}
         <div className="d-flex gap-2 mt-auto">
-          {/* 
+          {/*
             Botão para alterar o status do livro.
             Ciclo: quero-ler → lendo → lido → quero-ler
           */}
-          <Button 
-            variant="outline-primary" 
+          <Button
+            variant="outline-primary"
             size="sm"
             className="flex-grow-1"
             onClick={onStatusChange}
@@ -143,12 +156,12 @@ function BookCard({ book, onRate, onRemove, onStatusChange }) {
             Mudar Status
           </Button>
 
-          {/* 
+          {/*
             Botão para remover o livro da estante.
             Usamos variant="outline-danger" para vermelho (ação destrutiva).
           */}
-          <Button 
-            variant="outline-danger" 
+          <Button
+            variant="outline-danger"
             size="sm"
             onClick={onRemove}
             title="Remover livro da estante"

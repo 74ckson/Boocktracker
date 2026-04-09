@@ -219,3 +219,74 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary-hover); /* Cor mais escura no hover */
 }
+
+/* ============================================================================
+ * PÁGINAS DE AUTENTICAÇÃO (Login/Register)
+ * ============================================================================ */
+
+.auth-wrapper {
+  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+  min-height: 100vh;
+}
+
+.auth-wrapper .card {
+  border: none;
+  border-radius: 16px;
+}
+
+.auth-wrapper .form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+}
+
+.auth-wrapper .btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.auth-wrapper .btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+/* ============================================================================
+ * DROPDOWN DO USUÁRIO (Header)
+ * ============================================================================ */
+
+#dropdown-user.nav-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+#dropdown-user.nav-link:hover {
+  opacity: 0.8;
+}
+
+/* ============================================================================
+ * BARRA DE PROGRESSO (Metas de Leitura)
+ * ============================================================================ */
+
+.progress {
+  height: 24px;
+  border-radius: 12px;
+  background-color: #e9ecef;
+}
+
+.progress-bar {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ============================================================================
+ * ALERTAS DE PLANO
+ * ============================================================================ */
+
+.alert .btn {
+  transition: all var(--transition-fast);
+}
+
+.alert .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}

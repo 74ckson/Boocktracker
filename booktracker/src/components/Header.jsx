@@ -1,58 +1,29 @@
 // ============================================================================
-// components/Header.jsx - Componente de Cabeçalho
+// components/Header.jsx - Componente de Cabeçalho Atualizado para SaaS
 // ============================================================================
-// Este componente exibe o cabeçalho fixo no topo da aplicação com:
-// - Logo/nome do app
-// - Ícone decorativo
-// - Navegação com contadores de livros
-//
-// O Header é um componente "apresentacional", ou seja, ele apenas recebe
-// dados via props e exibe na tela, sem gerenciar estado próprio.
+// Agora exibe informações do usuário e botão de logout.
 // ============================================================================
 
-import { Container, Navbar, Nav, Badge } from 'react-bootstrap'
+import { Container, Navbar, Nav, Badge, Dropdown } from 'react-bootstrap'
 
-/**
- * Componente Header
- * 
- * @param {Object} props - Props do componente
- * @param {Object} props.stats - Objeto com estatísticas dos livros
- * @param {number} props.stats.totalBooks - Total de livros
- * @param {number} props.stats.booksReading - Livros sendo lidos
- * @param {number} props.stats.booksRead - Livros já lidos
- * @param {number} props.stats.booksWantToRead - Livros na lista de desejos
- * 
- * Props são como "parâmetros" que um componente pai passa para um componente filho.
- * É a forma de comunicação entre componentes no React.
- */
-function Header({ stats }) {
+function Header({ stats, user, onLogout }) {
   return (
-    // Navbar do Bootstrap: barra de navegação responsiva
     <Navbar bg="dark" variant="dark" expand="lg" className="shadow-sm">
       <Container>
-        {/* Brand: logo/nome do aplicativo */}
-        <Navbar.Brand href="#" className="d-flex align-items-center gap-2">
-          {/* bi-book é um ícone do Bootstrap Icons */}
-          <i className="bi bi-book fs-3"></i>
+        <Navbar.Brand href="#dashboard" className="d-flex align-items-center gap-2">
+          <i className="bi bi-book-heart fs-3"></i>
           <span className="fw-bold">BookTracker</span>
-          {/* Badge mostra o total de livros de forma destacada */}
           <Badge bg="primary" pill>
             {stats.totalBooks} {stats.totalBooks === 1 ? 'livro' : 'livros'}
           </Badge>
         </Navbar.Brand>
 
-        {/* Botão hamburger para mobile */}
         <Navbar.Toggle aria-controls="main-navbar" />
-        
-        {/* Conteúdo colapsável da navbar */}
+
         <Navbar.Collapse id="main-navbar">
-          {/* Nav.Link são links de navegação estilizados pelo Bootstrap */}
           <Nav className="ms-auto">
-            {/* ms-auto = margin-start: auto, empurra os itens para a direita */}
-            
             <Nav.Link href="#lendo">
               <i className="bi bi-bookmark"></i> Lendo
-              {/* Badge amarelo mostra quantos livros estão sendo lidos */}
               <Badge bg="warning" text="dark" pill className="ms-1">
                 {stats.booksReading}
               </Badge>
@@ -71,12 +42,57 @@ function Header({ stats }) {
                 {stats.booksWantToRead}
               </Badge>
             </Nav.Link>
+
+            {/* Dropdown do Usuário */}
+            {user && (
+              <Dropdown align="end">
+                <Dropdown.Toggle variant="link" id="dropdown-user" className="nav-link text-light">
+                  <i className="bi bi-person-circle me-1"></i>
+                  {user.name}
+                </Dropdown.Toggle>
+
+                <Dropdown.Menu>
+                  <Dropdown.ItemText>
+                    <small className="text-muted">{user.email}</small>
+                    <br />
+                    <Badge bg={user.plan === 'free' ? 'secondary' : 'success'}>
+                      {user.plan === 'free' ? 'Gratuito' : 'Premium'}
+                    </Badge>
+                  </Dropdown.ItemText>
+                  
+                  <Dropdown.Divider />
+                  
+                  <Dropdown.Item href="#perfil">
+                    <i className="bi bi-person me-2"></i>
+                    Meu Perfil
+                  </Dropdown.Item>
+                  
+                  <Dropdown.Item href="#configuracoes">
+                    <i className="bi bi-gear me-2"></i>
+                    Configurações
+                  </Dropdown.Item>
+                  
+                  {user.plan === 'free' && (
+                    <Dropdown.Item href="#upgrade">
+                      <i className="bi bi-star text-warning me-2"></i>
+                      <strong>Upgrade para Premium</strong>
+                    </Dropdown.Item>
+                  )}
+                  
+                  <Dropdown.Divider />
+                  
+                  <Dropdown.Item onClick={onLogout} className="text-danger">
+                    <i className="bi bi-box-arrow-right me-2"></i>
+                    Sair
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            )}
           </Nav>
         </Navbar.Collapse>
       </Container>
     </Navbar>
-  )
+  );
 }
 
-// Exportamos o componente para que outros arquivos possam importá-lo
-export default Header
+export default Header;
